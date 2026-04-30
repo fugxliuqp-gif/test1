@@ -1,38 +1,35 @@
-# Session Snapshot — 2026-04-30
+# Session Snapshot — 2026-04-30 (会话结束)
 
 ## 当前阶段
-**Phase 1: 官网 MVP 编码完成，待你验收**
+**Phase 1: 官网 MVP 编码完成，待你验收（下次会话首件事）**
 
-## 活跃任务
-| 编号 | 任务 | 状态 | 说明 |
-|------|------|------|------|
-| P1-01~04 | 官网 MVP (后端+前端+管理后台) | ✅ 编码完成 | 待你浏览器验收 |
-| P1-05 | 你验收 | ⬜ 待你操作 | 见下方验收清单 |
+## 完成情况
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| 后端 (FastAPI) | ✅ 完成 | 6 公开 API + 19 管理 API + 5 表 + 种子数据 |
+| 前端 (LandingPage) | ✅ 完成 | Hero / 关于 / Skill / 政策 / 申请表单 |
+| 管理后台 | ✅ 完成 | 登录 / 入驻审核 / Banner+Skill 管理 |
+| 测试报告 | ✅ 已创建 | `docs/plan/test-report.md` |
+| Aider 工具链 | ✅ 已优化 | v2.1: 自动加载 .env + 上下文注入 + 执行日志 |
+| 分工规则 | ✅ 已制定 | `docs/plan/decision-guide.md` |
 
-## 测试状态
-后端 API 全部通过 curl 验证。
-前端页面需要你打开浏览器验收。
+## 待你验收（下次会话）
+1. 启动后端 + 前端，浏览器打开 http://localhost:5174/
+2. 检查官网首页和管理后台功能
+3. 反馈修改意见
 
-## 你验收步骤
+## 启动命令
 ```bash
-# 1. 启动后端
+# 终端 1
 cd /home/fu/projects/skills/nanjingliusu/backend
 python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-# 2. 另开终端，启动前端
+# 终端 2
 cd /home/fu/projects/skills/nanjingliusu/frontend
 npm run dev
-
-# 3. 浏览器打开
-#    官网: http://localhost:5174/
-#    管理后台: http://localhost:5174/admin (admin / admin123456)
 ```
 
-## 需要你确认的问题
-1. 官网首页视觉风格是否满意？
-2. 管理后台功能是否符合预期？
-3. 确认后可进入 Phase 2（SaaS 多租户）或继续打磨官网
-
-## 关键文件
-- 测试报告: `docs/plan/test-report.md`
-- 项目文档: `docs/PRD/`, `docs/arch/`, `AGENTS.md`
+## 注意
+- 管理后台密码: admin / admin123456
+- 前端端口: 5174（5173 被 shuziluansheng 占用）
+- 项目位置: `/home/fu/projects/skills/nanjingliusu/`

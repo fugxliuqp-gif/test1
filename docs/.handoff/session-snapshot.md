@@ -1,48 +1,38 @@
 # Session Snapshot — 2026-04-30
 
 ## 当前阶段
-**Phase 1: 官网 MVP 编码完成** — 前端 + 后端 + 管理后台全部完成
+**Phase 1: 官网 MVP 编码完成，待你验收**
 
-## 任务状态
-| 编号 | 任务 | 状态 |
-|------|------|------|
-| P1-01 | 后端脚手架 | ✅ 完成 |
-| P1-02 | CMS 数据模型 + API | ✅ 完成 |
-| P1-03 | 官网前端 LandingPage | ✅ 完成 |
-| P1-04 | 管理后台 | ✅ 完成 |
-| P1-05 | 端到端测试 | 📋 待你验证 |
+## 活跃任务
+| 编号 | 任务 | 状态 | 说明 |
+|------|------|------|------|
+| P1-01~04 | 官网 MVP (后端+前端+管理后台) | ✅ 编码完成 | 待你浏览器验收 |
+| P1-05 | 你验收 | ⬜ 待你操作 | 见下方验收清单 |
 
-## 项目总览
-```
-/home/fu/projects/skills/nanjingliusu/
-├── backend/ (FastAPI, 6 个文件, 10 个 API 端点)
-│   ├── 公开 API: /health, /cms/banners, /cms/skills, /cms/policies, /cms/contact, /apply
-│   ├── 管理 API: /admin/login, /admin/applications, /admin/banners, /admin/skills, /admin/policies, /admin/contacts
-│   └── 模型: Banner, Skill, Policy, ContactInfo, EnterpriseApplication
-├── frontend/ (React + Ant Design, 蓝色科技风)
-│   ├── LandingPage (首页): Hero + 关于 + Skill 展示 + 政策合规 + 入驻申请
-│   └── Admin (管理后台): 登录 + 入驻审核 + Banner/Skill 管理
-├── AGENTS.md, docs/PRD/, docs/arch/
-└── KIMI/aidexec.sh (Aider 工具)
-```
+## 测试状态
+后端 API 全部通过 curl 验证。
+前端页面需要你打开浏览器验收。
 
-## 本地验证
+## 你验收步骤
 ```bash
-# 终端 1: 启动后端
+# 1. 启动后端
 cd /home/fu/projects/skills/nanjingliusu/backend
-python3 scripts/init_cms_data.py   # 首次运行
 python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-# 终端 2: 启动前端
+# 2. 另开终端，启动前端
 cd /home/fu/projects/skills/nanjingliusu/frontend
 npm run dev
 
-# 浏览器
-# 官网: http://localhost:5173/
-# 管理后台: http://localhost:5173/admin (admin/admin123)
+# 3. 浏览器打开
+#    官网: http://localhost:5174/
+#    管理后台: http://localhost:5174/admin (admin / admin123456)
 ```
 
-## 下一步
-- [ ] 你本地启动验证，看看效果
-- [ ] 如需修改视觉/内容，告诉我
-- [ ] 后续可继续 Phase 2: SaaS 多租户 / Phase 3: Skill 开发
+## 需要你确认的问题
+1. 官网首页视觉风格是否满意？
+2. 管理后台功能是否符合预期？
+3. 确认后可进入 Phase 2（SaaS 多租户）或继续打磨官网
+
+## 关键文件
+- 测试报告: `docs/plan/test-report.md`
+- 项目文档: `docs/PRD/`, `docs/arch/`, `AGENTS.md`

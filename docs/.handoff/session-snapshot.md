@@ -1,23 +1,48 @@
 # Session Snapshot — 2026-04-30
 
 ## 当前阶段
-**Phase 1: 官网 MVP 编码中** — P1-01 后端脚手架 ✅ | P1-02 CMS API ✅
+**Phase 1: 官网 MVP 编码完成** — 前端 + 后端 + 管理后台全部完成
 
-## 活跃任务
-| 编号 | 任务 | 状态 | 说明 |
-|------|------|------|------|
-| P1-01 | 后端脚手架 | ✅ 完成 | FastAPI + Config + Database + JWT Auth |
-| P1-02 | CMS 数据模型 + API | ✅ 完成 | Banner/Skill/Policy/Contact/Apply 完整 CRUD |
-| P1-03 | 官网前端 | 📋 待开始 | LandingPage + Skill 展示 + 入驻表单 |
-| P1-04 | 管理后台 | 📋 待开始 | |
-| P1-05 | 种子数据 + 测试 | 📋 待开始 | |
+## 任务状态
+| 编号 | 任务 | 状态 |
+|------|------|------|
+| P1-01 | 后端脚手架 | ✅ 完成 |
+| P1-02 | CMS 数据模型 + API | ✅ 完成 |
+| P1-03 | 官网前端 LandingPage | ✅ 完成 |
+| P1-04 | 管理后台 | ✅ 完成 |
+| P1-05 | 端到端测试 | 📋 待你验证 |
 
-## 后端状态
-- 16 个路由全部注册通过
-- 模型 5 张表全部 import 通过
-- JWT 认证中间件正常
+## 项目总览
+```
+/home/fu/projects/skills/nanjingliusu/
+├── backend/ (FastAPI, 6 个文件, 10 个 API 端点)
+│   ├── 公开 API: /health, /cms/banners, /cms/skills, /cms/policies, /cms/contact, /apply
+│   ├── 管理 API: /admin/login, /admin/applications, /admin/banners, /admin/skills, /admin/policies, /admin/contacts
+│   └── 模型: Banner, Skill, Policy, ContactInfo, EnterpriseApplication
+├── frontend/ (React + Ant Design, 蓝色科技风)
+│   ├── LandingPage (首页): Hero + 关于 + Skill 展示 + 政策合规 + 入驻申请
+│   └── Admin (管理后台): 登录 + 入驻审核 + Banner/Skill 管理
+├── AGENTS.md, docs/PRD/, docs/arch/
+└── KIMI/aidexec.sh (Aider 工具)
+```
 
-## 关于 Aider
-Aider 在创建**全新文件**时效果不佳（需要已有文件才能编辑），
-在**填充已有文件**时可以工作但可能只写 `[code]` 占位。
-目前策略：我写代码 + Aider 辅助。
+## 本地验证
+```bash
+# 终端 1: 启动后端
+cd /home/fu/projects/skills/nanjingliusu/backend
+python3 scripts/init_cms_data.py   # 首次运行
+python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# 终端 2: 启动前端
+cd /home/fu/projects/skills/nanjingliusu/frontend
+npm run dev
+
+# 浏览器
+# 官网: http://localhost:5173/
+# 管理后台: http://localhost:5173/admin (admin/admin123)
+```
+
+## 下一步
+- [ ] 你本地启动验证，看看效果
+- [ ] 如需修改视觉/内容，告诉我
+- [ ] 后续可继续 Phase 2: SaaS 多租户 / Phase 3: Skill 开发

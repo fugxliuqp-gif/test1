@@ -7,7 +7,7 @@ router = APIRouter()
 
 # 默认管理员账户（生产环境应通过环境变量配置）
 ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "admin123"
+ADMIN_PASSWORD = "admin123456"
 
 
 class LoginRequest(BaseModel):

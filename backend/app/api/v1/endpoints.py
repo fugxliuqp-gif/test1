@@ -95,7 +95,7 @@ async def get_banners(db: AsyncSession = Depends(get_db)):
 
 @router.get("/cms/skills")
 async def get_skills(db: AsyncSession = Depends(get_db)):
-    stmt = select(Skill).where(Skill.is_active == True).order_by(Skill.sort_order)
+    stmt = select(Skill).where(Skill.is_active == True).order_by(Skill.sort_order.desc())
     result = await db.execute(stmt)
     return result.scalars().all()
 

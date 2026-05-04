@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.core.response import success
 from app.core.security import create_access_token
 
 router = APIRouter()
@@ -13,7 +14,7 @@ class LoginRequest(BaseModel):
     password: str
 
 
-@router.post("/admin/login")
+@router.post("/admin/login", tags=["Auth"], summary="管理员登录")
 async def admin_login(req: LoginRequest):
     if req.username != settings.ADMIN_USERNAME:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
@@ -24,4 +25,4 @@ async def admin_login(req: LoginRequest):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
 
     token = create_access_token({"sub": req.username, "role": "admin"})
-    return {"access_token": token, "token_type": "bearer"}
+    return success(data={"access_token": token, "token_type": "bearer"})

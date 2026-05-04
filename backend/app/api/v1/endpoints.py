@@ -1,84 +1,25 @@
-import secrets
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_admin
-from app.models.cms import (
-    Banner,
-    Skill,
-    Policy,
-    ContactInfo,
-    EnterpriseApplication,
-)
+from app.core.response import success
+from app.schemas.banner import BannerCreate
+from app.schemas.skill import SkillCreate
+from app.schemas.policy import PolicyCreate
+from app.schemas.contact import ContactCreate
+from app.schemas.application import ApplyRequest, ReviewRequest
+from app.services.banner import BannerService
+from app.services.skill import SkillService
+from app.services.policy import PolicyService
+from app.services.contact import ContactService
+from app.services.application import ApplicationService
 
 router = APIRouter()
 
 
-# ═══════════════════════════════════════════
-# Pydantic 模型
-# ═══════════════════════════════════════════
-
-
-class ApplyRequest(BaseModel):
-    company_name: str
-    credit_code: str
-    industry: str
-    scale: str
-    contact_name: str
-    contact_phone: str
-    contact_email: str
-    interested_skills: Optional[str] = ""
-    requirements: Optional[str] = ""
-    current_systems: Optional[str] = ""
-
-
-class ReviewRequest(BaseModel):
-    status: str
-    reject_reason: Optional[str] = ""
-
-
-class BannerCreate(BaseModel):
-    title: str
-    subtitle: Optional[str] = ""
-    image_url: str = ""
-    button_text: str = "了解更多"
-    button_link: str = "#trial"
-    sort_order: int = 0
-    is_active: bool = True
-
-
-class SkillCreate(BaseModel):
-    key: str
-    name: str
-    icon: Optional[str] = ""
-    summary: str
-    description: Optional[str] = ""
-    scenarios: Optional[str] = ""
-    capabilities: Optional[str] = ""
-    platforms: Optional[str] = ""
-    sort_order: int = 0
-    is_active: bool = True
-
-
-class PolicyCreate(BaseModel):
-    dept: str
-    doc_number: Optional[str] = ""
-    title: str
-    description: Optional[str] = ""
-    sort_order: int = 0
-    is_active: bool = True
-
-
-class ContactCreate(BaseModel):
-    type: str
-    label: str
-    value: str
-    display_order: int = 0
+def handle_not_found(exc: ValueError):
+    raise HTTPException(status_code=404, detail=str(exc))
 
 
 # ═══════════════════════════════════════════
@@ -86,32 +27,28 @@ class ContactCreate(BaseModel):
 # ═══════════════════════════════════════════
 
 
-@router.get("/cms/banners")
+@router.get("/cms/banners", tags=["CMS"], summary="获取启用的 Banner 列表")
 async def get_banners(db: AsyncSession = Depends(get_db)):
-    stmt = select(Banner).where(Banner.is_active == True).order_by(Banner.sort_order)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    data = await BannerService(db).get_active()
+    return success(data=data)
 
 
-@router.get("/cms/skills")
+@router.get("/cms/skills", tags=["CMS"], summary="获取启用的 Skill 列表")
 async def get_skills(db: AsyncSession = Depends(get_db)):
-    stmt = select(Skill).where(Skill.is_active == True).order_by(Skill.sort_order.desc())
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    data = await SkillService(db).get_active()
+    return success(data=data)
 
 
-@router.get("/cms/policies")
+@router.get("/cms/policies", tags=["CMS"], summary="获取启用的政策列表")
 async def get_policies(db: AsyncSession = Depends(get_db)):
-    stmt = select(Policy).where(Policy.is_active == True).order_by(Policy.sort_order)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    data = await PolicyService(db).get_active()
+    return success(data=data)
 
 
-@router.get("/cms/contact")
+@router.get("/cms/contact", tags=["CMS"], summary="获取联系方式列表")
 async def get_contact(db: AsyncSession = Depends(get_db)):
-    stmt = select(ContactInfo).order_by(ContactInfo.display_order)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    data = await ContactService(db).get_all()
+    return success(data=data)
 
 
 # ═══════════════════════════════════════════
@@ -119,29 +56,10 @@ async def get_contact(db: AsyncSession = Depends(get_db)):
 # ═══════════════════════════════════════════
 
 
-@router.post("/apply")
-async def create_application(
-    req: ApplyRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    app = EnterpriseApplication(
-        company_name=req.company_name,
-        credit_code=req.credit_code,
-        industry=req.industry,
-        scale=req.scale,
-        contact_name=req.contact_name,
-        contact_phone=req.contact_phone,
-        contact_email=req.contact_email,
-        interested_skills=req.interested_skills,
-        requirements=req.requirements,
-        current_systems=req.current_systems,
-        status="pending",
-        tracking_code=secrets.token_hex(16),
-    )
-    db.add(app)
-    await db.commit()
-    await db.refresh(app)
-    return {"tracking_code": app.tracking_code}
+@router.post("/apply", tags=["Application"], summary="提交入驻申请")
+async def create_application(req: ApplyRequest, db: AsyncSession = Depends(get_db)):
+    app = await ApplicationService(db).create(req)
+    return success(data={"tracking_code": app.tracking_code}, message="提交成功")
 
 
 # ═══════════════════════════════════════════
@@ -151,268 +69,221 @@ async def create_application(
 # ── 入驻审核 ──
 
 
-@router.get("/admin/applications")
+@router.get("/admin/applications", tags=["Application"], summary="获取入驻申请列表（需认证）")
 async def get_applications(
-    status: Optional[str] = None,
+    status: str | None = None,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    stmt = select(EnterpriseApplication).order_by(EnterpriseApplication.created_at.desc())
-    if status:
-        stmt = stmt.where(EnterpriseApplication.status == status)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    data = await ApplicationService(db).get_all(status=status)
+    return success(data=data)
 
 
-@router.put("/admin/applications/{app_id}")
+@router.put("/admin/applications/{app_id}", tags=["Application"], summary="审核入驻申请（需认证）")
 async def review_application(
     app_id: int,
     req: ReviewRequest,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    result = await db.execute(select(EnterpriseApplication).where(EnterpriseApplication.id == app_id))
-    app = result.scalar_one_or_none()
-    if not app:
-        raise HTTPException(status_code=404, detail="申请不存在")
-    app.status = req.status
-    app.reject_reason = req.reject_reason
-    await db.commit()
-    await db.refresh(app)
-    return app
+    try:
+        app = await ApplicationService(db).review(app_id, req)
+        return success(data=app, message="更新成功")
+    except ValueError as e:
+        handle_not_found(e)
 
 
 # ── Banner CRUD ──
 
 
-@router.get("/admin/banners")
+@router.get("/admin/banners", tags=["Banner"], summary="获取所有 Banner（需认证）")
 async def admin_get_banners(
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    stmt = select(Banner).order_by(Banner.sort_order)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    data = await BannerService(db).get_all()
+    return success(data=data)
 
 
-@router.post("/admin/banners")
+@router.post("/admin/banners", tags=["Banner"], summary="创建 Banner（需认证）")
 async def admin_create_banner(
     req: BannerCreate,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    banner = Banner(**req.model_dump())
-    db.add(banner)
-    await db.commit()
-    await db.refresh(banner)
-    return banner
+    banner = await BannerService(db).create(req)
+    return success(data=banner, message="创建成功")
 
 
-@router.put("/admin/banners/{banner_id}")
+@router.put("/admin/banners/{banner_id}", tags=["Banner"], summary="更新 Banner（需认证）")
 async def admin_update_banner(
     banner_id: int,
     req: BannerCreate,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    result = await db.execute(select(Banner).where(Banner.id == banner_id))
-    banner = result.scalar_one_or_none()
-    if not banner:
-        raise HTTPException(status_code=404, detail="Banner 不存在")
-    for k, v in req.model_dump().items():
-        setattr(banner, k, v)
-    await db.commit()
-    await db.refresh(banner)
-    return banner
+    try:
+        banner = await BannerService(db).update(banner_id, req)
+        return success(data=banner, message="更新成功")
+    except ValueError as e:
+        handle_not_found(e)
 
 
-@router.delete("/admin/banners/{banner_id}")
+@router.delete("/admin/banners/{banner_id}", tags=["Banner"], summary="删除 Banner（需认证）")
 async def admin_delete_banner(
     banner_id: int,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    result = await db.execute(select(Banner).where(Banner.id == banner_id))
-    banner = result.scalar_one_or_none()
-    if not banner:
-        raise HTTPException(status_code=404, detail="Banner 不存在")
-    await db.delete(banner)
-    await db.commit()
-    return {"ok": True}
+    try:
+        await BannerService(db).delete(banner_id)
+        return success(message="删除成功")
+    except ValueError as e:
+        handle_not_found(e)
 
 
 # ── Skill CRUD ──
 
 
-@router.get("/admin/skills")
+@router.get("/admin/skills", tags=["Skill"], summary="获取所有 Skill（需认证）")
 async def admin_get_skills(
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    stmt = select(Skill).order_by(Skill.sort_order)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    data = await SkillService(db).get_all()
+    return success(data=data)
 
 
-@router.post("/admin/skills")
+@router.post("/admin/skills", tags=["Skill"], summary="创建 Skill（需认证）")
 async def admin_create_skill(
     req: SkillCreate,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    skill = Skill(**req.model_dump())
-    db.add(skill)
-    await db.commit()
-    await db.refresh(skill)
-    return skill
+    skill = await SkillService(db).create(req)
+    return success(data=skill, message="创建成功")
 
 
-@router.put("/admin/skills/{skill_id}")
+@router.put("/admin/skills/{skill_id}", tags=["Skill"], summary="更新 Skill（需认证）")
 async def admin_update_skill(
     skill_id: int,
     req: SkillCreate,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    result = await db.execute(select(Skill).where(Skill.id == skill_id))
-    skill = result.scalar_one_or_none()
-    if not skill:
-        raise HTTPException(status_code=404, detail="Skill 不存在")
-    for k, v in req.model_dump().items():
-        setattr(skill, k, v)
-    await db.commit()
-    await db.refresh(skill)
-    return skill
+    try:
+        skill = await SkillService(db).update(skill_id, req)
+        return success(data=skill, message="更新成功")
+    except ValueError as e:
+        handle_not_found(e)
 
 
-@router.delete("/admin/skills/{skill_id}")
+@router.delete("/admin/skills/{skill_id}", tags=["Skill"], summary="删除 Skill（需认证）")
 async def admin_delete_skill(
     skill_id: int,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    result = await db.execute(select(Skill).where(Skill.id == skill_id))
-    skill = result.scalar_one_or_none()
-    if not skill:
-        raise HTTPException(status_code=404, detail="Skill 不存在")
-    await db.delete(skill)
-    await db.commit()
-    return {"ok": True}
+    try:
+        await SkillService(db).delete(skill_id)
+        return success(message="删除成功")
+    except ValueError as e:
+        handle_not_found(e)
 
 
 # ── Policy CRUD ──
 
 
-@router.get("/admin/policies")
+@router.get("/admin/policies", tags=["Policy"], summary="获取所有政策（需认证）")
 async def admin_get_policies(
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    stmt = select(Policy).order_by(Policy.sort_order)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    data = await PolicyService(db).get_all()
+    return success(data=data)
 
 
-@router.post("/admin/policies")
+@router.post("/admin/policies", tags=["Policy"], summary="创建政策（需认证）")
 async def admin_create_policy(
     req: PolicyCreate,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    policy = Policy(**req.model_dump())
-    db.add(policy)
-    await db.commit()
-    await db.refresh(policy)
-    return policy
+    policy = await PolicyService(db).create(req)
+    return success(data=policy, message="创建成功")
 
 
-@router.put("/admin/policies/{policy_id}")
+@router.put("/admin/policies/{policy_id}", tags=["Policy"], summary="更新政策（需认证）")
 async def admin_update_policy(
     policy_id: int,
     req: PolicyCreate,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    result = await db.execute(select(Policy).where(Policy.id == policy_id))
-    policy = result.scalar_one_or_none()
-    if not policy:
-        raise HTTPException(status_code=404, detail="政策不存在")
-    for k, v in req.model_dump().items():
-        setattr(policy, k, v)
-    await db.commit()
-    await db.refresh(policy)
-    return policy
+    try:
+        policy = await PolicyService(db).update(policy_id, req)
+        return success(data=policy, message="更新成功")
+    except ValueError as e:
+        handle_not_found(e)
 
 
-@router.delete("/admin/policies/{policy_id}")
+@router.delete("/admin/policies/{policy_id}", tags=["Policy"], summary="删除政策（需认证）")
 async def admin_delete_policy(
     policy_id: int,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    result = await db.execute(select(Policy).where(Policy.id == policy_id))
-    policy = result.scalar_one_or_none()
-    if not policy:
-        raise HTTPException(status_code=404, detail="政策不存在")
-    await db.delete(policy)
-    await db.commit()
-    return {"ok": True}
+    try:
+        await PolicyService(db).delete(policy_id)
+        return success(message="删除成功")
+    except ValueError as e:
+        handle_not_found(e)
 
 
 # ── Contact CRUD ──
 
 
-@router.get("/admin/contacts")
+@router.get("/admin/contacts", tags=["Contact"], summary="获取所有联系方式（需认证）")
 async def admin_get_contacts(
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    stmt = select(ContactInfo).order_by(ContactInfo.display_order)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    data = await ContactService(db).get_all()
+    return success(data=data)
 
 
-@router.post("/admin/contacts")
+@router.post("/admin/contacts", tags=["Contact"], summary="创建联系方式（需认证）")
 async def admin_create_contact(
     req: ContactCreate,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    contact = ContactInfo(**req.model_dump())
-    db.add(contact)
-    await db.commit()
-    await db.refresh(contact)
-    return contact
+    contact = await ContactService(db).create(req)
+    return success(data=contact, message="创建成功")
 
 
-@router.put("/admin/contacts/{contact_id}")
+@router.put("/admin/contacts/{contact_id}", tags=["Contact"], summary="更新联系方式（需认证）")
 async def admin_update_contact(
     contact_id: int,
     req: ContactCreate,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    result = await db.execute(select(ContactInfo).where(ContactInfo.id == contact_id))
-    contact = result.scalar_one_or_none()
-    if not contact:
-        raise HTTPException(status_code=404, detail="联系方式不存在")
-    for k, v in req.model_dump().items():
-        setattr(contact, k, v)
-    await db.commit()
-    await db.refresh(contact)
-    return contact
+    try:
+        contact = await ContactService(db).update(contact_id, req)
+        return success(data=contact, message="更新成功")
+    except ValueError as e:
+        handle_not_found(e)
 
 
-@router.delete("/admin/contacts/{contact_id}")
+@router.delete("/admin/contacts/{contact_id}", tags=["Contact"], summary="删除联系方式（需认证）")
 async def admin_delete_contact(
     contact_id: int,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin),
 ):
-    result = await db.execute(select(ContactInfo).where(ContactInfo.id == contact_id))
-    contact = result.scalar_one_or_none()
-    if not contact:
-        raise HTTPException(status_code=404, detail="联系方式不存在")
-    await db.delete(contact)
-    await db.commit()
-    return {"ok": True}
+    try:
+        await ContactService(db).delete(contact_id)
+        return success(message="删除成功")
+    except ValueError as e:
+        handle_not_found(e)

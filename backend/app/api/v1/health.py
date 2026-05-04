@@ -5,8 +5,9 @@ from fastapi import APIRouter
 from sqlalchemy import text
 
 from app.core.database import async_session_maker
+from app.core.response import success
 
-router = APIRouter(tags=["health"])
+router = APIRouter(tags=["Health"])
 
 start_time: float = 0.0
 
@@ -25,15 +26,15 @@ async def check_database() -> str:
         return "disconnected"
 
 
-@router.get("/health")
+@router.get("/health", summary="健康检查")
 async def health_check():
     db_status = await check_database()
     overall = "healthy" if db_status == "connected" else "degraded"
-    return {
+    return success(data={
         "status": overall,
         "app_name": "南京流苏官网",
         "version": "1.0.0",
         "uptime_seconds": int(time.monotonic() - start_time),
         "database": db_status,
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-    }
+    })

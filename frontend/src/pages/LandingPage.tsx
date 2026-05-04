@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react'
-import { Form, Input, Select, Button, message, Checkbox } from 'antd'
+import { useState, useMemo } from 'react'
+import { Form, Input, Select, Button, message } from 'antd'
 import { useBanners, useSkills, usePolicies, useContacts, useApply } from '../hooks/useCms'
 import '../styles/site.css'
 

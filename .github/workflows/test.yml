@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install httpx pytest pytest-asyncio
+
+    - name: Create .env
+      run: |
+        cd backend
+        cp .env.example .env
+        python3 << 'EOF'
+        import secrets, bcrypt
+        key = secrets.token_urlsafe(32)
+        hash = bcrypt.hashpw(b'admin123456', bcrypt.gensalt()).decode()
+        with open('.env', 'w') as f:
+            f.write(f'SECRET_KEY={key}\n')
+            f.write(f'ADMIN_USERNAME=admin\n')
+            f.write(f'ADMIN_PASSWORD_HASH={hash}\n')
+            f.write('CORS_ORIGINS=["http://localhost:5174","http://localhost:8000"]\n')
+        EOF
+
+    - name: Run tests
+      run: |
+        cd backend
+        PYTHONPATH=. python3 -m pytest tests/ -v
